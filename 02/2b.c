@@ -38,15 +38,15 @@ int main(int argc, char **argv) {
     const char current_char = line[i];
 
     switch (current_char) {
-    case '\0':
-      break;
+      case '\0':
+        break;
 
-    case ',':
-      number_of_opcodes++;
-      continue;
+      case ',':
+        number_of_opcodes++;
+        continue;
 
-    default:
-      continue;
+      default:
+        continue;
     }
 
     /* Only reach here if we break out of the switch */
@@ -69,28 +69,28 @@ int main(int argc, char **argv) {
     const char current_char = line[i];
 
     switch (current_char) {
-    case ',':
-      /* Save the buffer and clean it out */
-      opcodes[current_opcode] = atoi(opcode_buf);
-      bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
-      /* Move on with life... */
-      current_opcode++;
-      position_in_opcode = 0;
-      continue;
+      case ',':
+        /* Save the buffer and clean it out */
+        opcodes[current_opcode] = atoi(opcode_buf);
+        bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
+        /* Move on with life... */
+        current_opcode++;
+        position_in_opcode = 0;
+        continue;
 
-    case '\0':
-      /* Save final number */
-      opcodes[current_opcode] = (int)atoi(opcode_buf);
-      bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
-      /* Update these as well for consistency checks */
-      current_opcode++;
-      position_in_opcode = 0;
-      break;
+      case '\0':
+        /* Save final number */
+        opcodes[current_opcode] = (int)atoi(opcode_buf);
+        bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
+        /* Update these as well for consistency checks */
+        current_opcode++;
+        position_in_opcode = 0;
+        break;
 
-    default:
-      opcode_buf[position_in_opcode] = current_char;
-      position_in_opcode++;
-      continue;
+      default:
+        opcode_buf[position_in_opcode] = current_char;
+        position_in_opcode++;
+        continue;
     }
 
     /* Only reach here in case \0 */
@@ -126,33 +126,33 @@ int main(int argc, char **argv) {
         current_opcode = copy_of_opcodes[current_position];
 
         switch (current_opcode) {
-        case 99:
-          /* Termination */
-          break;
+          case 99:
+            /* Termination */
+            break;
 
-        case 1:
-          /* Addition x + y */
-          x = copy_of_opcodes[copy_of_opcodes[current_position + 1]];
-          y = copy_of_opcodes[copy_of_opcodes[current_position + 2]];
-          out_position = copy_of_opcodes[current_position + 3];
+          case 1:
+            /* Addition x + y */
+            x = copy_of_opcodes[copy_of_opcodes[current_position + 1]];
+            y = copy_of_opcodes[copy_of_opcodes[current_position + 2]];
+            out_position = copy_of_opcodes[current_position + 3];
 
-          copy_of_opcodes[out_position] = x + y;
-          current_position += 4;
-          continue;
+            copy_of_opcodes[out_position] = x + y;
+            current_position += 4;
+            continue;
 
-        case 2:
-          /* Multiplication x * y */
-          x = copy_of_opcodes[copy_of_opcodes[current_position + 1]];
-          y = copy_of_opcodes[copy_of_opcodes[current_position + 2]];
-          out_position = copy_of_opcodes[current_position + 3];
+          case 2:
+            /* Multiplication x * y */
+            x = copy_of_opcodes[copy_of_opcodes[current_position + 1]];
+            y = copy_of_opcodes[copy_of_opcodes[current_position + 2]];
+            out_position = copy_of_opcodes[current_position + 3];
 
-          copy_of_opcodes[out_position] = x * y;
-          current_position += 4;
-          continue;
+            copy_of_opcodes[out_position] = x * y;
+            current_position += 4;
+            continue;
 
-        default:
-          printf("Invalid opcode %d\n", current_opcode);
-          break;
+          default:
+            printf("Invalid opcode %d\n", current_opcode);
+            break;
         }
       }
 
