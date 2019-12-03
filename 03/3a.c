@@ -179,10 +179,6 @@ int find_intersections(struct line_segment *horizontal_line_segments,
   /* This is a little complex of a solution to this one, but that's what this
    * is all about, right? :) */
 
-  /* First we need to find the number of intersections so that we can
-   * store them as output (mainly because I'm too lazy to implement
-   * linked lists) */
-
   int shortest_manhattan_distance = INT_MAX;
 
   for (int horizontal_segment_count = 0;
