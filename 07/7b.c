@@ -23,7 +23,10 @@
 /* Size of the input int array */
 #define INPUT_SIZE 2
 
-#define DEBUG 1
+/* Size of the input sequence (how many interpreters we'll need) */
+#define NUMBER_OF_INTERPRETERS 5
+
+/*#define DEBUG 1*/
 
 #ifdef DEBUG
 #define message(s, ...) ({ printf("" s "\n", ##__VA_ARGS__); })
@@ -61,6 +64,12 @@ struct intcode_interpreter {
 
   /*! Current position in that input (how many have been used?) */
   int current_position_in_input;
+
+  /*! The last output from this interpreter */
+  int last_output;
+
+  /*! Return code from the last time we exited */
+  int return_code;
 };
 
 /*! Prints the contents of an intcode interpreter's memory */
@@ -230,8 +239,42 @@ void create_interpreter(char *filename,
   empty_interpreter->current_position_in_input = 0;
   empty_interpreter->is_active = 0;
   empty_interpreter->has_exited = 0;
+  empty_interpreter->last_output = 0;
+  empty_interpreter->return_code = 0;
 
   return;
+}
+
+/*! Copy the contents of an interpreter into another interpreter */
+void copy_interpreter(struct intcode_interpreter *from,
+                      struct intcode_interpreter *to) {
+
+  /* First things first - need to copy the memory. */
+  size_t size_of_memory =
+      (from->memory_size + MAX_INSTRUCTION_LENGTH) * sizeof(int);
+  to->memory = (int *)malloc(size_of_memory);
+
+  memcpy(to->memory, from->memory, size_of_memory);
+
+  /* Now copy the rest of the struct */
+  to->is_active = from->is_active;
+  to->has_exited = from->has_exited;
+  to->memory_size = from->memory_size;
+  to->current_instruction = from->current_instruction;
+  to->current_opcode = from->current_opcode;
+  to->current_position = from->current_position;
+  to->input[0] = from->input[0];
+  to->input[1] = from->input[1];
+  to->current_position_in_input = from->current_position_in_input;
+  to->last_output = from->last_output;
+  to->return_code = from->return_code;
+
+  return;
+}
+
+/*! Kill off an interpreter and free any assigned allocated memory */
+void kill_interpreter(struct intcode_interpreter *interpreter) {
+  free(interpreter->memory);
 }
 
 /*! Allows for an interpreter to take control of the thread and run to either:
@@ -239,11 +282,12 @@ void create_interpreter(char *filename,
  * a) completion
  * b) it runs out of input
  *
- * In both cases it will return 0. If the interpreter exits for another reason,
+ * If the interpreter exits for a reason,
  * it will return a code.
  *
  * Codes:
- *   0: success
+ *   0: more parameters needed
+ *   1: success
  *   8: reached end of control without end instruction
  *   9: invalid instruction
  */
@@ -272,7 +316,8 @@ int run_interpreter(struct intcode_interpreter *interpreter) {
     switch (interpreter->current_opcode) {
       case 99:
         /* Termination */
-        return 0;
+        interpreter->return_code = 1;
+        return 1;
         break;
 
       case 1:
@@ -299,7 +344,15 @@ int run_interpreter(struct intcode_interpreter *interpreter) {
         continue;
 
       case 3:
-        /* TODO: RELEASE THREAD HERE */
+        /* First need to check if we have any input left; if we do we need
+         * to exit and do it _gracefully_! */
+        if (interpreter->current_position_in_input == INPUT_SIZE) {
+          interpreter->return_code = 0;
+          return 0;
+        }
+
+        /* Otherwise, we should continue on to process input. */
+
         /* This is _strictly_ an immediate mode instruction. */
         x = interpreter->memory[address + 1];
 
@@ -320,7 +373,8 @@ int run_interpreter(struct intcode_interpreter *interpreter) {
         /* Output x */
         interpreter->current_position += 2;
         message("Output: %d\n", x);
-        printf("%d\n", x);
+
+        interpreter->last_output = x;
 
         continue;
 
@@ -382,45 +436,83 @@ int run_interpreter(struct intcode_interpreter *interpreter) {
 
       default:
         printf("Invalid opcode %d\n", interpreter->current_opcode);
+        interpreter->return_code = 9;
         return 9;
         break;
     }
   }
 
+  interpreter->return_code = 8;
   return 8;
 }
 
 int main(int argc, char **argv) {
   char *filename;
-  int user_input[2];
-  struct intcode_interpreter interpreter;
+  char *input_sequence;
+  char input_buffer[2];
+
+  int phase_settings[NUMBER_OF_INTERPRETERS];
+  struct intcode_interpreter master_interpreter;
 
   if (argc > 2) {
     /* Argv[1] is filename */
-    create_interpreter(argv[1], &interpreter);
+    create_interpreter(argv[1], &master_interpreter);
+    input_sequence = argv[2];
 
-    interpreter.input[0] = (int)atoi(argv[2]);
-    interpreter.input[1] = (int)atoi(argv[3]);
+    for (int i = 0; i < NUMBER_OF_INTERPRETERS; i++) {
+      /* Must do this because atoi needs an end-of-string */
+      input_buffer[0] = input_sequence[i];
+      input_buffer[1] = '\0';
+      phase_settings[i] = atoi(&input_buffer[0]);
+      message("Phase setting for %d: %d", i, phase_settings[i]);
+    }
 
-    interpreter.current_position_in_input = 0;
+    master_interpreter.current_position_in_input = 0;
+    master_interpreter.input[0] = 0;
+    master_interpreter.input[1] = 0;
   } else {
-    printf("Please provide a filename and two input numbers.\n");
+    printf("Please provide a filename and an input sequence.\n");
     exit(1);
   }
 
-  message("Provided filename %s, parameters %d, %d.", argv[1],
-          interpreter.input[0], interpreter.input[1]);
+  message("Provided filename %s, sequence %s.", argv[1], argv[2]);
 
-  /* Now that we have the interpreter, let's do the arithmetic! */
+  /* Now that we have the master interpreter, we need to create enough
+   * copies to fully staisfy our needs */
+  struct intcode_interpreter interpreters[NUMBER_OF_INTERPRETERS];
 
-  run_interpreter(&interpreter);
-
-#ifdef DEBUG
-  printf("Post computation:\n");
-  for (int i = 0; i < interpreter.memory_size; i++) {
-    printf("Opcode %d = %d\n", i, interpreter.memory[i]);
+  for (int i = 0; i < NUMBER_OF_INTERPRETERS; i++) {
+    copy_interpreter(&master_interpreter, &interpreters[i]);
+    interpreters[i].input[0] = phase_settings[i];
   }
-#endif
+
+  /* Now for the scary part - start them all off in sequence (wish us luck!) */
+  int current_interpreter = 0, current_return_code = 0, input_from_previous = 0;
+
+  /* We only care about the return code of E! */
+  while (interpreters[NUMBER_OF_INTERPRETERS - 1].return_code != 1) {
+    interpreters[current_interpreter].input[1] = input_from_previous;
+
+    current_return_code = run_interpreter(&(interpreters[current_interpreter]));
+    input_from_previous = interpreters[current_interpreter].last_output;
+    message("Return code from %d: %d, last output: %d", current_interpreter,
+            current_return_code, input_from_previous);
+
+    /* Reset input for next time around, but don't re-read phases */
+    interpreters[current_interpreter].current_position_in_input = 1;
+
+    current_interpreter += 1;
+    current_interpreter %= NUMBER_OF_INTERPRETERS;
+  }
+
+  /* Print our actual result, the last return value of interpreter E! */
+  printf("%d\n", interpreters[NUMBER_OF_INTERPRETERS - 1].last_output);
+
+  for (int i = 0; i < NUMBER_OF_INTERPRETERS; i++) {
+    message("Last output from interpreter %d: %d", i,
+            interpreters[i].last_output);
+    kill_interpreter(&interpreters[i]);
+  }
 
   return 0;
 }
