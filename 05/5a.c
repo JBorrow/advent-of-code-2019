@@ -246,12 +246,12 @@ int main(int argc, char **argv) {
         continue;
 
       case 4:
-        /* This is _strictly_ an immediate mode instruction. */
-        x = opcodes[current_position + 1];
+        x = get_value_of_parameter(opcodes, current_position + 1, mode_x);
 
         /* Output x */
         current_position += 2;
-        printf("Output: %d from %d\n", opcodes[x], x);
+        printf("Output: %d\n", x);
+
         continue;
 
       default:
