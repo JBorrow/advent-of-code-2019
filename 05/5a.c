@@ -36,8 +36,7 @@
 #define DEBUG 1
 
 #ifdef DEBUG
-#define message(s, ...) \
-  ({ printf("%s: " s "\n", __FUNCTION__, ##__VA_ARGS__); })
+#define message(s, ...) ({ printf("" s "\n", ##__VA_ARGS__); })
 #else
 #define message(s, ...) ({})
 #endif
