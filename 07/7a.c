@@ -11,7 +11,7 @@
 #define LINE_BUF_SIZE 4096
 #define OPCODE_BUF_SIZE 32
 #define MAX_INSTRUCTION_LENGTH 4
-#define DEBUG 1
+/*#define DEBUG 1*/
 
 #ifdef DEBUG
 #define message(s, ...) ({ printf("" s "\n", ##__VA_ARGS__); })
@@ -21,9 +21,8 @@
 
 /*! Parses a 5 digit opcode to the actual output parameters
  *  See the header comment for more information. */
-void parse_opcode(long instruction, long *out_opcode,
-                  long *out_first_param_mode, long *out_second_param_mode,
-                  long *out_third_param_mode) {
+void parse_opcode(int instruction, int *out_opcode, int *out_first_param_mode,
+                  int *out_second_param_mode, int *out_third_param_mode) {
 
   /* Do this in reverse order to avoid costly %s - there has to be a better
    * way of doing this! */
@@ -35,15 +34,15 @@ void parse_opcode(long instruction, long *out_opcode,
   instruction -= *out_first_param_mode * 100;
   *out_opcode = instruction;
 
-  message("Opcode, mode_x, mode_y, mode_z: %ld, %ld, %ld, %ld", *out_opcode,
+  message("Opcode, mode_x, mode_y, mode_z: %d, %d, %d, %d", *out_opcode,
           *out_first_param_mode, *out_second_param_mode, *out_third_param_mode);
 
   return;
 }
 
 /*! Gets a value of a parameter based on the mode and position */
-long get_value_of_parameter(long *opcodes, long position, long mode) {
-  long initial_value = opcodes[position];
+int get_value_of_parameter(int *opcodes, int position, int mode) {
+  int initial_value = opcodes[position];
 
   switch (mode) {
     case 0:
@@ -55,8 +54,8 @@ long get_value_of_parameter(long *opcodes, long position, long mode) {
       return initial_value;
   }
 
-  message("Unhandled instruction %ld at %ld (Mode: %ld).", initial_value,
-          position, mode);
+  message("Unhandled instruction %d at %d (Mode: %d).", initial_value, position,
+          mode);
   exit(-1);
 
   return 0;
@@ -64,12 +63,12 @@ long get_value_of_parameter(long *opcodes, long position, long mode) {
 
 int main(int argc, char **argv) {
   char *filename;
-  long user_input[2];
+  int user_input[2];
 
   if (argc > 2) {
     filename = argv[1];
-    user_input[0] = (long)atoi(argv[2]);
-    user_input[1] = (long)atoi(argv[3]);
+    user_input[0] = (int)atoi(argv[2]);
+    user_input[1] = (int)atoi(argv[3]);
   } else {
     printf("Please provide a filename and two input numbers.\n");
     exit(1);
@@ -78,7 +77,7 @@ int main(int argc, char **argv) {
   /* Used below in the interpreter */
   int current_user_input = 0;
 
-  message("Provided filename %s, parameters %ld, %ld.", filename, user_input[0],
+  message("Provided filename %s, parameters %d, %d.", filename, user_input[0],
           user_input[1]);
 
   /* Actually read the file */
@@ -98,7 +97,7 @@ int main(int argc, char **argv) {
 
   /* First we need to parse the number of opcodes; simply number
    * of commas plus one. */
-  long number_of_opcodes = 0;
+  int number_of_opcodes = 0;
 
   for (int i = 0; i < LINE_BUF_SIZE; i++) {
     const char current_char = line[i];
@@ -121,18 +120,18 @@ int main(int argc, char **argv) {
 
   /* Add on our one extra... */
   number_of_opcodes++;
-  message("There are %ld opcodes.", number_of_opcodes);
+  message("There are %d opcodes.", number_of_opcodes);
 
   /* Create an array to store opcodes in lenghtened by MAX_INSTRUCTION_LENGTH
    * to prevent segfaults if we ever try to read parameters past the end
    * of the array. */
-  long *opcodes = (long *)malloc((number_of_opcodes + MAX_INSTRUCTION_LENGTH) *
-                                 sizeof(long));
-  bzero(opcodes, (number_of_opcodes + MAX_INSTRUCTION_LENGTH) * sizeof(long));
+  int *opcodes =
+      (int *)malloc((number_of_opcodes + MAX_INSTRUCTION_LENGTH) * sizeof(int));
+  bzero(opcodes, (number_of_opcodes + MAX_INSTRUCTION_LENGTH) * sizeof(int));
 
   /* Parse the opcodes array */
   char opcode_buf[OPCODE_BUF_SIZE];
-  long current_opcode = 0, position_in_opcode = 0;
+  int current_opcode = 0, position_in_opcode = 0;
   bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
 
   for (int i = 0; i < LINE_BUF_SIZE; i++) {
@@ -141,7 +140,7 @@ int main(int argc, char **argv) {
     switch (current_char) {
       case ',':
         /* Save the buffer and clean it out */
-        opcodes[current_opcode] = (long)atoi(opcode_buf);
+        opcodes[current_opcode] = (int)atoi(opcode_buf);
         bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
         /* Move on with life... */
         current_opcode++;
@@ -150,7 +149,7 @@ int main(int argc, char **argv) {
 
       case '\0':
         /* Save final number */
-        opcodes[current_opcode] = (long)atoi(opcode_buf);
+        opcodes[current_opcode] = (int)atoi(opcode_buf);
         bzero(opcode_buf, sizeof(char) * OPCODE_BUF_SIZE);
         /* Update these as well for consistency checks */
         current_opcode++;
@@ -169,15 +168,15 @@ int main(int argc, char **argv) {
 
   free(line);
 
-  message("I think that I managed to parse %ld opcodes.", current_opcode);
+  message("I think that I managed to parse %d opcodes.", current_opcode);
 
   /* Let's see those opcodes then! */
   for (int i = 0; i < number_of_opcodes; i++) {
-    message("Opcode %d = %ld", i, opcodes[i]);
+    message("Opcode %d = %d", i, opcodes[i]);
   }
 
   if (current_opcode != number_of_opcodes) {
-    printf("Found an invalid number of opcodes (%ld != %ld)\n", current_opcode,
+    printf("Found an invalid number of opcodes (%d != %d)\n", current_opcode,
            number_of_opcodes);
     exit(-1);
   }
@@ -187,16 +186,16 @@ int main(int argc, char **argv) {
   current_opcode = 0;
   /* Functions are opcode(x, y, z) */
   int current_position = 0;
-  long current_instruction = 0;
-  long x = 0, y = 0, z = 0;
-  long mode_x = 0, mode_y = 0, mode_z = 0;
+  int current_instruction = 0;
+  int x = 0, y = 0, z = 0;
+  int mode_x = 0, mode_y = 0, mode_z = 0;
 
   while (current_opcode != 99) {
     /* Main program loop */
 
     current_instruction = opcodes[current_position];
 
-    message("Current instruction: %ld, position: %d", current_instruction,
+    message("Current instruction: %d, position: %d", current_instruction,
             current_position);
     parse_opcode(current_instruction, &current_opcode, &mode_x, &mode_y,
                  &mode_z);
@@ -217,7 +216,7 @@ int main(int argc, char **argv) {
         /* Addition x + y -> z*/
         opcodes[z] = x + y;
         current_position += 4;
-        message("Addition, %ld + %ld -> %ld", x, y, z);
+        message("Addition, %d + %d -> %d", x, y, z);
         continue;
 
       case 2:
@@ -228,7 +227,7 @@ int main(int argc, char **argv) {
         /* Multiplication x * y -> z */
         opcodes[z] = x * y;
         current_position += 4;
-        message("Multiplication, %ld * %ld -> %ld", x, y, z);
+        message("Multiplication, %d * %d -> %d", x, y, z);
 
         continue;
 
@@ -237,10 +236,10 @@ int main(int argc, char **argv) {
         x = opcodes[current_position + 1];
 
         /* Request user input and store in -> x */
-        message("Old value of %ld is %ld", x, opcodes[x]);
+        message("Old value of %d is %d", x, opcodes[x]);
         opcodes[x] = user_input[current_user_input];
         current_position += 2;
-        message("Storage %ld -> %ld", user_input[current_user_input], x);
+        message("Storage %d -> %d", user_input[current_user_input], x);
         current_user_input++;
 
         continue;
@@ -250,8 +249,8 @@ int main(int argc, char **argv) {
 
         /* Output x */
         current_position += 2;
-        message("Output: %ld\n", x);
-        printf("%ld\n", x);
+        message("Output: %d\n", x);
+        printf("%d\n", x);
 
         continue;
 
@@ -262,7 +261,7 @@ int main(int argc, char **argv) {
 
         if (x) {
           current_position = y;
-          message("Updating current instruction pointer to %ld", y);
+          message("Updating current instruction pointer to %d", y);
         } else {
           current_position += 3;
           message("Failed jump-if-true condition");
@@ -277,7 +276,7 @@ int main(int argc, char **argv) {
 
         if (x == 0) {
           current_position = y;
-          message("Updating current instruction pointer to %ld", y);
+          message("Updating current instruction pointer to %d", y);
         } else {
           current_position += 3;
           message("Failed jump-if-false condition");
@@ -292,7 +291,7 @@ int main(int argc, char **argv) {
         z = opcodes[current_position + 3];
 
         opcodes[z] = x < y;
-        message("Less than (%ld < %ld): Storing %d in %ld", x, y, x < y, z);
+        message("Less than (%d < %d): Storing %d in %d", x, y, x < y, z);
 
         current_position += 4;
 
@@ -305,14 +304,14 @@ int main(int argc, char **argv) {
         z = opcodes[current_position + 3];
 
         opcodes[z] = x == y;
-        message("Equals (%ld == %ld): Storing %d in %ld", x, y, x == y, z);
+        message("Equals (%d == %d): Storing %d in %d", x, y, x == y, z);
 
         current_position += 4;
 
         continue;
 
       default:
-        printf("Invalid opcode %ld\n", current_opcode);
+        printf("Invalid opcode %d\n", current_opcode);
         exit(-1);
         break;
     }
@@ -321,7 +320,7 @@ int main(int argc, char **argv) {
 #ifdef DEBUG
   printf("Post computation:\n");
   for (int i = 0; i < number_of_opcodes; i++) {
-    printf("Opcode %d = %ld\n", i, opcodes[i]);
+    printf("Opcode %d = %d\n", i, opcodes[i]);
   }
 #endif
 
